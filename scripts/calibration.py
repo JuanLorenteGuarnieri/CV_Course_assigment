@@ -5,6 +5,7 @@ import numpy as np
 import cv2 as cv
 import glob
 import matplotlib.pyplot as plt
+import os
 
 
 
@@ -29,9 +30,15 @@ if __name__ == '__main__':
     # Arrays to store object points and image points from all the images.
     objpoints = [] # 3d point in real world space
     imgpoints = [] # 2d points in image plane.
+    valid_extensions = ('.jpg', '.jpeg', '.png', '.bmp', '.tiff')
+    image_files = [name for name in os.listdir("../data/calibration/images_z2") if name.lower().endswith(valid_extensions)]
+    num_images = len(image_files)
+    images = [cv.cvtColor(cv.imread(os.path.join("../data/calibration/images_z2", img)), cv.COLOR_BGR2RGB) for img in image_files]
     images = glob.glob('calib_*.jpg')
     #cv.namedWindow('img', cv.WINDOW_NORMAL)  # Create window with freedom of dimensions
     #cv.resizeWindow('img', 800, 600)
+    
+    shape = None
     for fname in images:
         img = cv.imread(fname)
         img_rows = img.shape[1]
@@ -39,8 +46,8 @@ if __name__ == '__main__':
         new_img_size = (int(img_rows / image_downsize_factor), int(img_cols / image_downsize_factor))
         img = cv.resize(img, new_img_size, interpolation = cv.INTER_CUBIC)
         gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+        shape = gray.shape[:-1]
 
-        
         print('Processing caliration image:', fname)
         # Find the chess board corners
         ret, corners = cv.findChessboardCorners(gray, pattern_size, None)
@@ -57,7 +64,7 @@ if __name__ == '__main__':
 
     #initial_distortion = np.zeros((1, 5))
     #initial_K = np.eye(3)
-    ret, mtx, dist, rvecs, tvecs = cv.calibrateCamera(objpoints, imgpoints, gray.shape[::-1], None, None, flags=(cv.CALIB_ZERO_TANGENT_DIST))
+    ret, mtx, dist, rvecs, tvecs = cv.calibrateCamera(objpoints, imgpoints, shape, None, None, flags=(cv.CALIB_ZERO_TANGENT_DIST))
 
     # reprojection error for the calibration images
     mean_error = 0

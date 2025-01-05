@@ -1,0 +1,1 @@
+python ./SuperGluePretrainedNetwork/match_pairs.py --match_threshold 0.01 --keypoint_threshold 0.005 --resize 752 --superglue indoor --max_keypoints 4096  --nms_radius 3 --resize_float --input_dir ../data/raw/buildings/pilar/  --input_pairs ../data/raw/buildings/pilar/euroc_sample_pairs.txt --output_dir ../data/processed/buildings/pilar/ --viz

@@ -4,7 +4,7 @@ import cv2
 import random
 import scipy.linalg as scAlg
 from scipy.linalg import expm, logm
-from scipy.optimize import least_squares
+import scipy.optimize as scOptim
 
 # Ensamble T matrix
 def ensamble_T(R_w_c, t_w_c) -> np.array:
@@ -15,7 +15,7 @@ def ensamble_T(R_w_c, t_w_c) -> np.array:
     T_w_c[0:3, 0:3] = R_w_c
     T_w_c[0:3, 3] = t_w_c
     T_w_c[3, 3] = 1
-    return T_w_c
+    return np.linalg.inv(T_w_c)
 
 def inhom2hom (x, multiplier=1):
     """
@@ -99,6 +99,34 @@ def project_points_v0(P, X, lbda = 1):
     x_h = (P @ X_h) * lbda  # Apply projection matrix
     x = x_h[:2] / x_h[2]  # Convert to inhomogeneous (x, y) by dividing by the third coordinate
     return x
+
+def project_points(K, T, X_w):
+    """
+    Project 3D points into 2D image plane using camera intrinsic matrix and extrinsic transformation.
+    Parameters:
+        K (np.ndarray): Intrinsic camera matrix (3x3).
+        T (np.ndarray): Extrinsic transformation matrix (3x4 or 4x4).
+        X_w (np.ndarray): 3D points in world coordinates (3xN or 4xN).
+    Returns:
+        np.ndarray: Projected 2D points in homogeneous coordinates (3xN).
+    """
+    # Ensure T is a 4x4 matrix
+    if T.shape == (3, 4):
+        T_hom = np.vstack([T, [0, 0, 0, 1]])
+    else:
+        T_hom = T
+
+    # Ensure X_w is in homogeneous coordinates
+    if X_w.shape[0] == 3:
+        X_w_hom = np.vstack([X_w, np.ones((1, X_w.shape[1]))])
+    else:
+        X_w_hom = X_w
+
+    # Compute the projection
+    x_proj_hom = K @ T_hom[:3, :] @ X_w_hom
+    x_proj = x_proj_hom / x_proj_hom[2, :]
+
+    return x_proj
 
 def project_points_SVD(X):
     """
@@ -383,6 +411,32 @@ def decompose_essential_matrix(E):
 
     return R1, R2, t
 
+def estimate_transformations(K, num_images, matches):
+    transformations = []
+
+  # Estimate the fundamental matrix and compute transformations
+    for i in range(1, num_images):
+      F, inliers = ransac_fundamental_matrix(matches[0], matches[i])
+      E = K.T @ F @ K
+      R1, R2, t = decompose_essential_matrix(E)
+
+    # Choose the correct R and t by checking the validity of the solution
+      if is_valid_solution(R1, t, K, matches[0], matches[i]):
+        R, t = R1, t
+      elif is_valid_solution(R2, t, K, matches[0], matches[i]):
+        R, t = R2, t
+      elif is_valid_solution(R1, -t, K, matches[0], matches[i]):
+        R, t = R1, -t
+      else:
+        R, t = R2, -t
+
+    # Compute the transformation matrix
+      T = ensamble_T(R, t)
+      transformations.append(T)
+
+    # Add the identity transformation for the first image
+    transformations.insert(0, np.eye(4))
+    return transformations
 
 def triangulate_points(P1, P2, pts1, pts2):
     """
@@ -822,7 +876,7 @@ def bundle_adjustment(x1Data, x2Data, K_c, T_init, X_in):
     # initial_params = np.hstack([[ 0.011, 2.6345, 1.4543], [-1.4445, -2.4526, 18.1895], X_init.T.flatten()])
 
     # Run bundle adjustment optimization
-    result = least_squares(resBundleProjection, initial_params, args=(x1Data_sample, x2Data_sample, K_c, nPoints_sample), method='trf') #method='lm'
+    result = scOptim.least_squares(resBundleProjection, initial_params, args=(x1Data_sample, x2Data_sample, K_c, nPoints_sample), method='trf') #method='lm'
 
     # Retrieve optimized parameters
     Op_opt = result.x
@@ -1029,7 +1083,7 @@ def bundle_adjustment_fish_eye(x1Data, x2Data, x3Data, x4Data, K_1, K_2, D1_k, D
     initial_params = np.hstack([T_init[:3], T_init[3:], X_in.flatten()])
 
     # Run least-squares optimization
-    result = least_squares(
+    result = scOptim.least_squares(
         resBundleProjectionFishEye, initial_params,
         args=(x1Data, x2Data, x3Data, x4Data, K_1, K_2, D1_k, D2_k, T_wc1, T_wc2, X_in.shape[0]),
         method='trf'
@@ -1048,6 +1102,69 @@ def bundle_adjustment_fish_eye(x1Data, x2Data, x3Data, x4Data, K_1, K_2, D1_k, D
     T_opt[:3, 3] = t_opt
 
     return T_opt, X_opt
+
+def residual_bundle_adjustment(params, K, xData, nImages):
+    X_w = params[nImages*6:].reshape(-1, 3).T
+    residuals = []
+
+    for i in range(nImages):
+        t = params[i*6:(i*6)+3]
+        th = params[(i*6)+3:(i*6)+6]
+        R = expm(crossMatrix(th))
+
+        T_wc = np.zeros((3, 4))
+        T_wc[:3, :3] = R
+        T_wc[:3, 3] = t
+
+        x_proj = project_points(K, T_wc, X_w)
+
+        residuals.append((x_proj[:2, :] - xData[i][:2, :]).flatten())
+
+    residuals = np.concatenate(residuals)
+    print("Residuals: ", residuals.mean())
+
+    return residuals
+
+
+def run_bundle_adjustment(T, K, X_w, xData, max_iter=5000, tol=1e-8):
+    if X_w.shape[0] == 4:
+        X_w = (X_w[:3, :] / X_w[3, :])
+    
+    nImages = len(T)
+
+    T_flat = np.array([])
+    for i in range(nImages):
+        t = T[i][:3, 3]
+        R = T[i][:3, :3]
+        th = crossMatrixInv(logm(R))
+
+        T_flat = np.hstack((T_flat, t, th))
+
+    X_w_flat = X_w.T.flatten()
+
+    initial_params = np.hstack((T_flat, X_w_flat))
+    
+    result = scOptim.least_squares(residual_bundle_adjustment, initial_params,
+                                   args=(K, xData, nImages), method='trf',
+                                   max_nfev=max_iter, gtol=tol, ftol=tol, xtol=tol)
+    
+    optimized_params = result.x
+
+    T_opt = []
+    for i in range(nImages):
+        t = optimized_params[i*6:(i*6)+3]
+        th = optimized_params[(i*6)+3:(i*6)+6]
+        R = expm(crossMatrix(th))
+
+        T_wc = np.zeros((3, 4))
+        T_wc[:3, :3] = R
+        T_wc[:3, 3] = t
+
+        T_opt.append(T_wc)
+
+    X_w_opt = optimized_params[nImages*6:].reshape(-1, 3).T
+
+    return T_opt, X_w_opt
 
 ##################### INTERPOLATION FUNCTIONS #####################
 
