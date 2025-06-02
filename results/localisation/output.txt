@@ -1,0 +1,113 @@
+Close the figure to continue. Left button for orbit, right button for zoom.
+PS D:\Projects\CV_Course_assigment\scripts\sfm_library> python .\feature_detection_step_step.py --K_path ../../data/calibration/K_z2.txt --imgs_path ../../data/raw/buildings/pilar/ --output_path ../../data/processed/buildings/pilar/
+K: [[1.58759540e+03 0.00000000e+00 5.03368497e+02]
+ [0.00000000e+00 1.58721966e+03 3.80395716e+02]
+ [0.00000000e+00 0.00000000e+00 1.00000000e+00]]
+Number of images: 19
+matches2 shape: (2493, 2)
+matches2 shape: (2493, 2)
+matches[0] shape: (2485, 2)
+matches2 shape: (2341, 2)
+matches2 shape: (2341, 2)
+matches[0] shape: (1997, 2)
+matches2 shape: (2781, 2)
+matches2 shape: (2781, 2)
+matches[0] shape: (1597, 2)
+matches2 shape: (2338, 2)
+matches2 shape: (2338, 2)
+matches[0] shape: (1457, 2)
+matches2 shape: (2212, 2)
+matches2 shape: (2212, 2)
+matches[0] shape: (1292, 2)
+matches2 shape: (2307, 2)
+matches2 shape: (2307, 2)
+matches[0] shape: (1109, 2)
+matches2 shape: (2259, 2)
+matches2 shape: (2259, 2)
+matches[0] shape: (1026, 2)
+matches2 shape: (2186, 2)
+matches2 shape: (2186, 2)
+matches[0] shape: (934, 2)
+matches2 shape: (2173, 2)
+matches2 shape: (2173, 2)
+matches[0] shape: (856, 2)
+matches2 shape: (2050, 2)
+matches2 shape: (2050, 2)
+matches[0] shape: (800, 2)
+matches2 shape: (2079, 2)
+matches2 shape: (2079, 2)
+matches[0] shape: (740, 2)
+matches2 shape: (1873, 2)
+matches2 shape: (1873, 2)
+matches[0] shape: (694, 2)
+matches2 shape: (2183, 2)
+matches2 shape: (2183, 2)
+matches[0] shape: (633, 2)
+matches2 shape: (1835, 2)
+matches2 shape: (1835, 2)
+matches[0] shape: (602, 2)
+matches2 shape: (1675, 2)
+matches2 shape: (1675, 2)
+matches[0] shape: (564, 2)
+matches2 shape: (1817, 2)
+matches2 shape: (1817, 2)
+matches[0] shape: (529, 2)
+matches2 shape: (1625, 2)
+matches2 shape: (1625, 2)
+matches[0] shape: (504, 2)
+Matches shape: (432, 2)
+Estimating transformations
+Transformations computed: 2
+X_w shape: (432, 3)
+X_w_ shape: (432, 3)
+--- Total time iter 3: 397.05315136909485 seconds ---
+X_w shape: (432, 3)
+X_w_ shape: (432, 3)
+--- Total time iter 4: 212.2553253173828 seconds ---
+X_w shape: (432, 3)
+X_w_ shape: (432, 3)
+--- Total time iter 5: 249.5559332370758 seconds ---
+X_w shape: (432, 3)
+X_w_ shape: (432, 3)
+--- Total time iter 6: 223.57161736488342 seconds ---
+X_w shape: (432, 3)
+X_w_ shape: (432, 3)
+--- Total time iter 7: 189.0535340309143 seconds ---
+X_w shape: (432, 3)
+X_w_ shape: (432, 3)
+--- Total time iter 8: 178.6995997428894 seconds ---
+X_w shape: (432, 3)
+X_w_ shape: (432, 3)
+--- Total time iter 9: 212.4230489730835 seconds ---
+X_w shape: (432, 3)
+X_w_ shape: (432, 3)
+--- Total time iter 10: 208.88593101501465 seconds ---
+X_w shape: (432, 3)
+X_w_ shape: (432, 3)
+--- Total time iter 11: 198.10844826698303 seconds ---
+X_w shape: (432, 3)
+X_w_ shape: (432, 3)
+--- Total time iter 12: 224.2178773880005 seconds ---
+X_w shape: (432, 3)
+X_w_ shape: (432, 3)
+--- Total time iter 13: 208.69854736328125 seconds ---
+X_w shape: (432, 3)
+X_w_ shape: (432, 3)
+--- Total time iter 14: 283.97416973114014 seconds ---
+X_w shape: (432, 3)
+X_w_ shape: (432, 3)
+--- Total time iter 15: 438.1785135269165 seconds ---
+X_w shape: (432, 3)
+X_w_ shape: (432, 3)
+--- Total time iter 16: 552.4327640533447 seconds ---
+X_w shape: (432, 3)
+X_w_ shape: (432, 3)
+--- Total time iter 17: 257.61497473716736 seconds ---
+X_w shape: (432, 3)
+X_w_ shape: (432, 3)
+--- Total time iter 18: 319.316703081131 seconds ---
+X_w shape: (432, 3)
+X_w_ shape: (432, 3)
+--- Total time iter 19: 394.1757564544678 seconds ---
+--- Total time: 4756.289947748184 seconds ---
+Close the figure to continue. Left button for orbit, right button for zoom.

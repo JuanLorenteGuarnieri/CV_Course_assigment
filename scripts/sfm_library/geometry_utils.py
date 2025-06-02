@@ -372,7 +372,6 @@ def compute_fundamental_matrix(x1, x2):
     # Normalize the fundamental matrix so that the last element is 1.
     return F / F[2, 2]
 
-
 def decompose_essential_matrix(E):
     """
     Decompose the essential matrix E into two possible rotation matrices (R1, R2) and a translation vector t.
@@ -632,6 +631,63 @@ def ransac_fundamental_matrix(matches1, matches2, num_iterations=10000, threshol
     best_F = compute_fundamental_matrix(inlier_p1, inlier_p2)
 
     return best_F, best_inliers
+
+def compute_projection_matrix_dlt(points_3d, image_points):
+    """
+    Compute the projection matrix P using the Direct Linear Transformation (DLT) algorithm.
+    Args:
+        points_3d: Nx3 array of 3D points.
+        image_points: Nx2 array of 2D image points.
+    Returns:
+        P: Projection matrix (3x4).
+    """
+    # Ensure points are in homogeneous coordinates
+    print(f'points_3d.shape: {points_3d.shape}')
+    points_3d_hom = np.hstack((points_3d.T, np.ones((points_3d.T.shape[0], 1))))
+    print(f'points_3d_hom.shape: {points_3d_hom.shape}')
+    image_points_hom = np.hstack((image_points, np.ones((image_points.shape[0], 1))))
+
+    # Construct the matrix A for DLT
+    A = []
+    for i in range(points_3d.shape[0]):
+        X, Y, Z = points_3d_hom[i]
+        u, v = image_points_hom[i]
+        W, w = 1, 1
+        A.append([0, 0, 0, 0, -w*X, -w*Y, -w*Z, -w*W, v*X, v*Y, v*Z, v*W])
+        A.append([w*X, w*Y, w*Z, w*W, 0, 0, 0, 0, -u*X, -u*Y, -u*Z, -u*W])
+
+    A = np.array(A)
+
+    # Solve for P using SVD
+    _, _, Vt = np.linalg.svd(A)
+    P = Vt[-1].reshape(3, 4)
+
+    return P
+
+def compute_camera_pose(P):
+    """
+    Compute the camera pose from the projection matrix.
+    Args:
+        P: Projection matrix (3x4).
+    Returns:
+        R: Rotation matrix (3x3).
+        t: Translation vector (3x1).
+    """
+    # Ensure P is a 3x4 matrix
+    assert P.shape == (3, 4), "Projection matrix P must be of shape (3, 4)"
+
+    # Extract the rotation matrix R and translation vector t from the projection matrix P
+    M = P[:, :3]
+    R, K = np.linalg.qr(np.linalg.inv(M))
+    R = np.linalg.inv(R)
+    t = np.linalg.inv(K) @ P[:, 3]
+
+    # Ensure the rotation matrix is a proper rotation matrix
+    if np.linalg.det(R) < 0:
+        R = -R
+        t = -t
+
+    return R, t
 
 def transfer_error(H, p1, p2):
     """
@@ -1121,7 +1177,7 @@ def residual_bundle_adjustment(params, K, xData, nImages):
         residuals.append((x_proj[:2, :] - xData[i][:2, :]).flatten())
 
     residuals = np.concatenate(residuals)
-    print("Residuals: ", residuals.mean())
+    # print("Residuals: ", residuals.mean())
 
     return residuals
 
@@ -1261,6 +1317,65 @@ def normalized_cross_correlation(patch: np.array, search_area: np.array) -> np.a
                 ncc = np.sum((i0 - i0_mean) * (i1 - i1_mean)) / (i0_std * i1_std * i0.size)
                 result[i, j] = ncc
     return result
+
+#Funcion que calcula la K dado la matriz fundamental
+def compute_intrinsic_matrix(points_3d, image_points):
+    """
+    Compute the intrinsic matrix K of a camera given 3D points and their corresponding 2D image points.
+    Args:
+        points_3d: Nx3 array of 3D points.
+        image_points: Nx2 array of 2D image points.
+    Returns:
+        K: Intrinsic camera matrix.
+    """
+    # Ensure points are in homogeneous coordinates
+    print(f'points_3d.shape: {points_3d.shape}')
+    points_3d_hom = np.hstack((points_3d.T, np.ones((points_3d.T.shape[0], 1))))
+    print(f'points_3d_hom.shape: {points_3d_hom.shape}')
+    image_points_hom = np.hstack((image_points, np.ones((image_points.shape[0], 1))))
+
+    # Construct the matrix A for DLT
+    A = []
+    for i in range(points_3d.shape[0]):
+        X, Y, Z, W = points_3d_hom[i]
+        u, v, w = image_points_hom[i]
+        # A.append([0, 0, 0, 0, -w*X, -w*Y, -w*Z, -w*W, v*X, v*Y, v*Z, v*W])
+        # A.append([w*X, w*Y, w*Z, w*W, 0, 0, 0, 0, -u*X, -u*Y, -u*Z, -u*W])
+        A.append([w*X, w*Y, w*Z, 1, 0, 0, 0, 0, -u*X, -u*Y, -u*Z, -u])
+        A.append([0, 0, 0, 0, w*X, w*Y, w*Z, 1, -v*X, -v*Y, -v*Z, -v])
+
+    A = np.array(A)
+
+    # Solve for P using SVD
+    _, _, Vt = np.linalg.svd(-A)
+    P = Vt[-1].reshape(3, 4)
+    
+    # R,t =compute_camera_pose(P)
+    
+    # Decompose the projection matrix using OpenCV
+    M = P[:, :3]
+    K, R, t, _, _, _, _ = cv2.decomposeProjectionMatrix(np.sign(np.linalg.det(M))*P)
+    
+    T_wc = np.eye(4)
+    T_wc[:3, :3] = R
+    T_wc[:, 3] = t.flatten()
+
+    # Normalize K
+    K /= K[2, 2]
+
+    # Convert t to a 3x1 vector
+    t = t[:3] / t[3]
+
+    # # Construct the transformation matrix T_wc
+    # # Extract intrinsic matrix K from P
+    # M = P[:, :3]
+    # K, R = np.linalg.qr(np.linalg.inv(M))
+    # K = np.linalg.inv(K)
+    # K /= K[2, 2]  # Normalize K
+
+    return K, T_wc
+
+
 
 def seed_estimation_NCC_single_point(img1_gray, img2_gray, i_img, j_img, patch_half_size: int = 5, searching_area_size: int = 100):
     """
